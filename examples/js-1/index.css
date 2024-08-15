@@ -1,0 +1,17 @@
+#container{
+    position: relative;
+    height: 1000px;
+    border: 2px solid rgb(23, 22, 22);
+  
+}
+.square {
+    position: absolute;
+    border: 1px solid red; /* 设置边框宽度为2px，样式为实线，颜色为红色 */
+    display: block;       /* 确保 div 作为块级元素显示 */
+    /* 如果需要让 div 可以自适应内容大小，可以去掉 width 和 height */
+}
+
+.square:hover {
+    border-color: blueviolet;
+    cursor: move;
+}
