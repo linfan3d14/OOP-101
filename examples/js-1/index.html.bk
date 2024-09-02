@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="./index.css" />
+</head>
+<body>
+    <h3>面向对象-Demo1</h3>
+    <!-- <span>
+        <p>游戏界面在随机位置生成N个正方形块</p>
+        <p>正方形可以移动</p>
+        <p>当两个正方形移动有交集/碰撞时,放开手标移动的正方形会和被碰撞的正方形组合</p>
+        <p>放开的正方形会成为被碰撞的正方形的子,被碰撞的边放会扩大</p>
+    </span> -->
+    <div id="container">
+        <!-- <div class="square" id="1"></div>
+        <div class="square" id="2"></div>
+        <div class="square" id="3"></div>
+        <div class="square" id="4"></div> -->
+    </div>
+    <script src="./index.js"></script>
+</body>
+</html>

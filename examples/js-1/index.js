@@ -3,6 +3,9 @@ function px2Int(px){
     return parseInt(px.split('px')[0], 10);
 }
 
+const dx=0,dy=0;
+
+var mX,mY;
 
 /**
  * 正方形块
@@ -29,7 +32,14 @@ class Square {
     }
 
     show(dom){
-        console.log(`绘制正方形x:${this.x},y:${this.y}`);
+
+        //TODO 以 div 的方式加入到 dom 中
+        //TODO 通过 square 的属性设置其 div样式
+
+        
+
+        // console.log(`绘制正方形x:${this.x},y:${this.y}`);
+        //调用其子 square
         if(this._sub){
             console.log(`绘制子正方形`);
             this._sub.show();
@@ -38,8 +48,10 @@ class Square {
 
     }
 
-    move(){
-        console.log(`移动正方形`) 
+    move(x,y){
+        console.log(`移动正方形至 x:${x},y:${y}`); 
+        this.x = x;
+        this.y = y;
         if(this._sub){
             console.log(`移动子正方形`);
             this._sub.move();
@@ -53,7 +65,7 @@ class Square {
 parentDiv = document.getElementById('container');
 const container = document.querySelector('#container')
 
-const step = 5;
+const step = 30;
 
 class Game{
 
@@ -67,6 +79,8 @@ class Game{
 
     
     constructor(count,dom){
+
+        //初始化生成 count 个 square
         this.squares = [];
         for (let index = 0; index < count; index++) {
             let x = this._getRandom();
@@ -76,7 +90,11 @@ class Game{
             this.squares.push(item)
         }
         this.dom = dom;
+
+        //TODO  将 square 显示在页面上
     }
+
+    
 
     
         
@@ -84,8 +102,6 @@ class Game{
 
     show(){
 
-        
-        
         for (let index = 0; index < this.squares.length; index++) {
             const item = this.squares[index];
 
@@ -101,7 +117,9 @@ class Game{
         newDiv.style.height = `${item.side}px`;
         newDiv.style.top = `${200+item.x}px`
         newDiv.style.left = `${100+item.x}px`
-        newDiv.innerHTML = `div_${item.id}`
+        newDiv.innerHTML = `d${item.id}`
+
+        // console.log(`init:${newDiv.innerHTML} x:${newDiv.style.top},y:${newDiv.style.left}`)
         // 步骤5: 将新创建的 div 添加到页面中的某个父元素中
         parentDiv.appendChild(newDiv); // 或者使用 parentDiv.insertBefore(newDiv, someElement);
             item.show();
@@ -128,16 +146,35 @@ var currentDropDiv;
 // 存储初始位置
 var initialX, initialY;
 
+var  currentX,currentY;
+
 container.ondragstart = (e) => {
     console.log('start',e.target.id)
-     // 保存初始位置
-     initialX = e.clientX - this.offsetLeft;
-     initialY = e.clientY - this.offsetTop;
+    //  // 保存初始位置
+    //  initialX = e.clientX - this.offsetLeft;
+    //  initialY = e.clientY - this.offsetTop;
+}
+
+container.ondragleave = (e) =>{
+    console.log('leave',e.target.id)
+    let cw = e.target.style.width;
+    if(px2Int(cw)>50){
+        e.target.style.width = `${px2Int(cw)-step}px`;
+        e.target.style.height = `${px2Int(cw)-step}px`;
+        e.target.style.top = `${px2Int(e.target.style.top)+step/2}px`;
+        e.target.style.left = `${px2Int(e.target.style.left)+step/2}px`;
+    }
 }
 
 container.ondragover = (e) => {
     // console.log('over',e.target)
     e.preventDefault();
+    // e.stopPropagation();
+
+    // let div = e.target;
+    // console.log(e.target)
+    // console.log('over',`d${div.id}-x:${div.style.top},y:${div.style.left}`)
+    
 }
 
 
@@ -149,53 +186,48 @@ container.ondragend = (e) => {
 
     //将 drop div的位置给到 end
     let moveDiv = e.target;
+    let ctop,cleft;
     if(currentDropDiv){
 
-        let ctop = currentDropDiv.style.top;
-        let cleft = currentDropDiv.style.left;
+        ctop = currentDropDiv.style.top;
+        cleft = currentDropDiv.style.left;
 
-        console.log(`move pre top:${moveDiv.style.top}`)
-        console.log(`move post left:${moveDiv.style.left}`)
+        // console.log(`move pre top:${moveDiv.style.top}`)
+        // console.log(`move post left:${moveDiv.style.left}`)
         moveDiv.style.top = ctop;
         moveDiv.style.left = cleft;
 
-        console.log(`move post top:${moveDiv.style.top}`)
-        console.log(`move post left:${moveDiv.style.left}`)
+        // console.log(`move post top:${moveDiv.style.top}`)
+        // console.log(`move post left:${moveDiv.style.left}`)
 
         
 
-        currentDropDiv.style.top = `${px2Int(ctop)+step*2}px`
-        currentDropDiv.style.left = `${px2Int(cleft)-step*2}px`
+        currentDropDiv.style.top = `${px2Int(ctop)-step/2}px`
+        currentDropDiv.style.left = `${px2Int(cleft)-step/2}px`
+        currentDropDiv.style.width =`${px2Int(currentDropDiv.style.width)+step}px`
+        currentDropDiv.style.height =`${px2Int(currentDropDiv.style.height)+step}px`
+        currentDropDiv.style.borderColor = 'black';
 
 
          
          
-         currentDropDiv.style.width=
-         `${(px2Int(currentDropDiv.style.width) + step)}px`;
-         currentDropDiv.style.height = 
-         `${(px2Int(currentDropDiv.style.height) + step)}px`;
+        //  currentDropDiv.style.width=
+        //  `${(px2Int(currentDropDiv.style.width) + step)}px`;
+        //  currentDropDiv.style.height = 
+        //  `${(px2Int(currentDropDiv.style.height) + step)}px`;
 
-         console.log(`原方块扩大w:${currentDropDiv.style.width},h:${currentDropDiv.style.height}`)
+        // //  console.log(`原方块扩大w:${currentDropDiv.style.width},h:${currentDropDiv.style.height}`)
          
+        console.log(`end c:${currentDropDiv.id}<-m:${moveDiv.id}`)
+
+        // currentDropDiv.appendChild(moveDiv);
 
         currentDropDiv = null;
     }else{
- // 获取鼠标当前位置
-    var mouseX = e.clientX;
-    var mouseY = e.clientY;
-
-    console.log(`mx:${mouseX},my:${mouseY}`)
-
-    console.log(`initialX:${initialX},initialY:${initialY}`)
-
-        // 计算被拖动元素的新位置
-        var newX = mouseX - initialX;
-        var newY = mouseY - initialY;
-    
-        console.log(e.target)
         // 设置被拖动元素的位置
-        e.target.style.left = `${mouseX-25}px`;
-        e.target.style.top = `${mouseY+25}px`;
+        e.target.style.left = `${e.clientX}px`;
+        e.target.style.top = `${e.clientY}px`;
+       
     }
     
 }
@@ -215,6 +247,17 @@ container.ondrop = (e)=>{
     
 }
 
+document.onkeydown = (e) =>{
+    console.log('keydown',`x:${mX},y:${mY}}`)
+}
+document.onmouseover = (e) => {
+    mX = e.clientX;
+    mY = e.clientY;
+}
 
-
-
+// document.addEventListener('keydown',function(e){
+//     console.log('keydown',e)
+//     if(e.key === 'a'){
+//         console.log(`key:${e.key} down.`)
+//     }
+// })

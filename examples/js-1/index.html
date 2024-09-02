@@ -3,23 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="./index.css" />
+    <title>Square Game v0.3.3</title>
+    <style>
+        #game-container {
+            width: 600px;
+            height: 400px;
+            border: 1px solid black;
+            position: relative;
+            overflow: hidden;
+        }
+        .square {
+            position: absolute;
+            border: 2px solid black;
+            background-color: rgba(0, 0, 255, 0.1);
+            cursor: move;
+            transition: border-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: auto;
+            user-select: none;
+        }
+
+
+
+        #version {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 14px;
+        }
+        #controls {
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h3>面向对象-Demo1</h3>
-    <span>
-        <p>游戏界面在随机位置生成N个正方形块</p>
-        <p>正方形可以移动</p>
-        <p>当两个正方形移动有交集/碰撞时,放开手标移动的正方形会和被碰撞的正方形组合</p>
-        <p>放开的正方形会成为被碰撞的正方形的子,被碰撞的边放会扩大</p>
-    </span>
-    <div id="container">
-        <!-- <div class="square" id="1"></div>
-        <div class="square" id="2"></div>
-        <div class="square" id="3"></div>
-        <div class="square" id="4"></div> -->
+    <div id="game-container"></div>
+    <div id="controls">
+        <p>Square count: <span id="square-count">0</span></p>
+        <label for="initial-size">Initial size:</label>
+        <input type="number" id="initial-size" value="50" min="10" max="200">
+        <label for="size-increase">Size increase:</label>
+        <input type="number" id="size-increase" value="20" min="1" max="100">
+        <label for="initial-count">Initial count:</label> <!-- 新增的输入框 -->
+        <input type="number" id="initial-count" value="4" min="1" max="10"> <!-- 默认值为 4 -->
+        <button id="reset-button">Reset Game</button>
     </div>
-    <script src="./index.js"></script>
+    <div id="version">v0.3.3</div>
+
+
+    <script>
+        class Square {
+            constructor(size, x, y, index) {
+                this.size = size;
+                this.x = x;
+                this.y = y;
+                this.son = null;
+                this.parent = null;
+                this.originalSize = size;
+                this.index = index;
+                this._isDragging = false;
+            }
+
+            get isDragging() {
+                return this._isDragging;
+            }
+
+            set isDragging(value) {
+                this._isDragging = value;
+                console.log(`Square ${this.index} isDragging: ${value}`);
+            }
+
+            moveTo(x, y) {
+                if (this.parent) {
+                    const parentPos = this.parent.getAbsolutePosition();
+                    this.x = x - parentPos.x;
+                    this.y = y - parentPos.y;
+                } else {
+                    this.x = x;
+                    this.y = y;
+                }
+                console.log(`Square ${this.index} moved to (${this.x}, ${this.y}), absolute: (${x}, ${y})`);
+            }
+
+            getAbsolutePosition() {
+                if (this.parent) {
+                    const parentPos = this.parent.getAbsolutePosition();
+                    return { x: parentPos.x + this.x, y: parentPos.y + this.y };
+                }
+                return { x: this.x, y: this.y };
+            }
+
+            setSon(square, sizeIncrease) {
+                if (this.son) {
+                    this.son.setSon(square, sizeIncrease);
+                } else {
+                    this.son = square;
+                    square.parent = this;
+                    this.updateSize(sizeIncrease);
+                    const centerX = (this.size - square.size) / 2;
+                    const centerY = (this.size - square.size) / 2;
+                    const parentPos = this.getAbsolutePosition();
+                    square.moveTo(parentPos.x + centerX, parentPos.y + centerY);
+                    console.log(`Square ${this.index} set son ${square.index}`);
+                }
+                return true;
+            }
+
+            removeSon() {
+                if (this.son) {
+                    const sonPos = this.son.getAbsolutePosition();
+                    this.son.parent = null;
+                    this.son.moveTo(sonPos.x, sonPos.y);
+                    console.log(`Square ${this.index} removed son ${this.son.index}`);
+                    this.son = null;
+                    this.updateSize(0); // 调整这里，传递 0 以重新计算大小
+                }
+            }
+
+            intersects(other) {
+                const pos1 = this.getAbsolutePosition();
+                const pos2 = other.getAbsolutePosition();
+                return !(pos1.x + this.size <= pos2.x ||
+                         pos1.x >= pos2.x + other.size ||
+                         pos1.y + this.size <= pos2.y ||
+                         pos1.y >= pos2.y + other.size);
+            }
+
+            updateSize(sizeIncrease) {
+                if (this.son) {
+                    this.size = this.son.size + parseInt(document.getElementById('size-increase').value);
+                } else {
+                    this.size = this.originalSize;
+                }
+                if (this.parent) {
+                    this.parent.updateSize(0); // 调整这里，传递 0 以重新计算大小
+                }
+            }
+        }
+
+        class Renderer {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                this.squareElements = new Map();
+            }
+
+            renderSquare(square) {
+                let element = this.squareElements.get(square);
+                if (!element) {
+                    element = document.createElement('div');
+                    element.className = 'square';
+                    this.container.appendChild(element);
+                    this.squareElements.set(square, element);
+                }
+
+                const pos = square.getAbsolutePosition();
+                Object.assign(element.style, {
+                    width: `${square.size}px`,
+                    height: `${square.size}px`,
+                    left: `${pos.x}px`,
+                    top: `${pos.y}px`,
+                    zIndex: square.parent ? '3' : '1',
+                    borderColor: square.isDragging ? 'red' : 'black',
+                    display: 'flex'
+                });
+
+                element.textContent = square.index;
+
+                if (square.son) {
+                    this.renderSquare(square.son);
+                }
+            }
+
+            clear() {
+                this.container.innerHTML = '';
+                this.squareElements.clear();
+            }
+        }
+
+        class Game {
+            constructor(renderer) {
+                this.renderer = renderer;
+                this.squares = [];
+                this.draggingSquare = null;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.squareCountElement = document.getElementById('square-count');
+                this.initialSizeInput = document.getElementById('initial-size');
+                this.sizeIncreaseInput = document.getElementById('size-increase');
+                this.initialCountInput = document.getElementById('initial-count'); // 新增的输入框
+                this.squareIndex = 0;
+                this.dragStartPos = { x: 0, y: 0 };
+
+                this.addEventListeners();
+                this.logDraggingStatus = this.logDraggingStatus.bind(this);
+                setInterval(this.logDraggingStatus, 1000);
+            }
+
+            addEventListeners() {
+                this.renderer.container.addEventListener('mousedown', this.onMouseDown.bind(this));
+                document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                document.addEventListener('mouseup', this.onMouseUp.bind(this));
+            }
+
+            initSquares(count) {
+                this.renderer.clear();
+                this.squares = [];
+
+                const size = parseInt(this.initialSizeInput.value);
+                const positions = [
+                    { x: 50, y: 50 },
+                    { x: 200, y: 150 },
+                    { x: 350, y: 50 },
+                    { x: 500, y: 150 }
+                ];
+
+                for (let i = 0; i < count; i++) {
+                    const { x, y } = positions[i % positions.length];
+                    const square = new Square(size, x, y, this.squareIndex++);
+                    this.squares.push(square);
+                    this.renderer.renderSquare(square);
+                }
+                this.updateSquareCount();
+            }
+
+            onMouseDown(e) {
+                const rect = this.renderer.container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                for (let i = this.squares.length - 1; i >= 0; i--) {
+                    const square = this.squares[i];
+                    if (this.isPointInSquare(x, y, square)) {
+                        if (square.son && this.isPointInSquare(x, y, square.son)) {
+                            this.draggingSquare = square.son;
+                        } else {
+                            this.draggingSquare = square;
+                        }
+                        this.draggingSquare.isDragging = true;
+                        const pos = this.draggingSquare.getAbsolutePosition();
+                        this.offsetX = x - pos.x;
+                        this.offsetY = y - pos.y;
+                        this.dragStartPos = { x: pos.x, y: pos.y };
+                        
+                        this.squares = this.squares.filter(s => s !== this.draggingSquare);
+                        this.squares.push(this.draggingSquare);
+                        
+                        this.renderer.renderSquare(this.draggingSquare.parent || this.draggingSquare);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        break;
+                    }
+                }
+            }
+
+            onMouseMove(e) {
+                if (this.draggingSquare) {
+                    const rect = this.renderer.container.getBoundingClientRect();
+                    let x = e.clientX - rect.left - this.offsetX;
+                    let y = e.clientY - rect.top - this.offsetY;
+
+                    console.log(`Dragging square ${this.draggingSquare.index} to (${x}, ${y})`);
+
+                    this.draggingSquare.moveTo(x, y);
+
+                    this.renderer.renderSquare(this.draggingSquare.parent || this.draggingSquare);
+                }
+            }
+
+            onMouseUp() {
+                if (this.draggingSquare) {
+                    const currentPos = this.draggingSquare.getAbsolutePosition();
+                    const dx = currentPos.x - this.dragStartPos.x;
+                    const dy = currentPos.y - this.dragStartPos.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (this.draggingSquare.parent && distance > 5) {
+                        const parentPos = this.draggingSquare.parent.getAbsolutePosition();
+                        const sunPos = this.draggingSquare.getAbsolutePosition();
+                        console.log(`鼠标松开：子方块 ${this.draggingSquare.index} 在 (${sunPos.x}, ${sunPos.y})，父方块 ${this.draggingSquare.parent.index} 在 (${parentPos.x}, ${parentPos.y})`);
+                        
+                        if (!this.isPointInSquare(sunPos.x, sunPos.y, this.draggingSquare.parent)) {
+                            console.log(`分离子方块 ${this.draggingSquare.index} 从父方块 ${this.draggingSquare.parent.index}`);
+                            const parent = this.draggingSquare.parent;
+                            parent.removeSon();
+                            this.draggingSquare.moveTo(sunPos.x, sunPos.y);
+                            this.squares.push(this.draggingSquare);
+                            this.renderer.renderSquare(parent);
+                        }
+                    } else if (!this.draggingSquare.parent) {
+                        this.checkIntersection(this.draggingSquare);
+                    }
+                    
+                    // 检查是否仍然相交
+                    if (this.draggingSquare.parent) {
+                        const parentPos = this.draggingSquare.parent.getAbsolutePosition();
+                        const centerX = (this.draggingSquare.parent.size - this.draggingSquare.size) / 2;
+                        const centerY = (this.draggingSquare.parent.size - this.draggingSquare.size) / 2;
+                        this.draggingSquare.moveTo(parentPos.x + centerX, parentPos.y + centerY);
+                    } else {
+                        // 检查是否与其他方块相交
+                        let intersectingSquare = null;
+                        for (let otherSquare of this.squares) {
+                            if (otherSquare !== this.draggingSquare && this.draggingSquare.intersects(otherSquare)) {
+                                intersectingSquare = otherSquare;
+                                break;
+                            }
+                        }
+                        if (intersectingSquare) {
+                            const sizeIncrease = parseInt(this.sizeIncreaseInput.value);
+                            let targetSquare = intersectingSquare;
+                            while (targetSquare.son) {
+                                targetSquare = targetSquare.son;
+                            }
+                            if (targetSquare.setSon(this.draggingSquare, sizeIncrease)) {
+                                this.squares = this.squares.filter(s => s !== this.draggingSquare);
+                                this.renderer.renderSquare(intersectingSquare);
+                            }
+                        }
+                    }
+                    
+                    this.resetDraggingStatus(this.squares);
+                    this.draggingSquare = null;
+                }
+                this.updateSquareCount();
+            }
+
+            isPointInSquare(x, y, square) {
+                const pos = square.getAbsolutePosition();
+                const result = x >= pos.x && x <= pos.x + square.size &&
+                               y >= pos.y && y <= pos.y + square.size;
+                console.log(`isPointInSquare: (${x}, ${y}) in square ${square.index} at (${pos.x}, ${pos.y}) size ${square.size}: ${result}`);
+                return result;
+            }
+
+            checkIntersection(square) {
+                const sizeIncrease = parseInt(this.sizeIncreaseInput.value);
+                for (let otherSquare of this.squares) {
+                    if (otherSquare !== square && square.intersects(otherSquare)) {
+                        let targetSquare = otherSquare;
+                        while (targetSquare.son) {
+                            targetSquare = targetSquare.son;
+                        }
+                        if (targetSquare.setSon(square, sizeIncrease)) {
+                            this.squares = this.squares.filter(s => s !== square);
+                            this.renderer.renderSquare(otherSquare);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            updateSquareCount() {
+                this.squareCountElement.textContent = this.squares.length;
+            }
+
+            logDraggingStatus() {
+                // console.log("--- Dragging Status ---");
+                // this.squares.forEach(square => {
+                //     console.log(`Square ${square.index}: isDragging = ${square.isDragging}, isSun = ${square.parent !== null}`);
+                // });
+                // console.log("----------------------");
+            }
+
+            resetDraggingStatus(squares, processed = new Set()) {
+                squares.forEach(square => {
+                    if (!processed.has(square)) {
+                        processed.add(square);
+                        square.isDragging = false;
+                        this.renderer.renderSquare(square);
+                        if (square.son) {
+                            this.resetDraggingStatus([square.son], processed);
+                        }
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const renderer = new Renderer('game-container');
+            const game = new Game(renderer);
+            
+            document.getElementById('reset-button').addEventListener('click', () => {
+                const initialCount = parseInt(game.initialCountInput.value); // 获取初始方块数量
+                game.initSquares(initialCount);
+            });
+
+            const initialCount = parseInt(game.initialCountInput.value); // 获取初始方块数量
+            game.initSquares(initialCount); // 初始化方块
+        });
+    </script>
 </body>
 </html>
